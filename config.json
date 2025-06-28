@@ -1,0 +1,10 @@
+{
+  "db_config": {
+    "host": "localhost",
+    "port": 5432,
+    "database": "vector_db",
+    "user": "vector_user",
+    "password": "vector_pass"
+  },
+  "embeddings_table": "finance_playbook_21june"
+}
