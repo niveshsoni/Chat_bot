@@ -18,7 +18,9 @@ You are a strict assistant. Use only the context below to answer the question.
 
 ### INSTRUCTIONS:
 - Return only content from the context, grouped by the title it appears under.
-- If answer is from multiple chunks then you should search in all the chunks and respond.                                               
+- If answer is from multiple chunks then you should search in all the chunks and respond.   
+- if user ask two questions then if one question's response is available and second's not then you will have to respond for that question that's answer is available in context and for second one return "Answer is not available in context". 
+- if user ask two questions and response for both question is available in chunks. then you need to specify what are talking about.                                                                                                                                        
 - For each page where content is relevant, show:
   Title: <title>\n
   <exact matching content from that page>
@@ -83,6 +85,9 @@ def get_gemini_response(question: str) -> dict:
         # print("-----------------------------------------------------------------------------------")
         # print()
         context_docs = "\n\n".join([r["document"] for r in sorted_results])
+        print("---------------------------------------------------------------------------------------")
+        print(context_docs)
+        print("----------------------------------------------------------------------------------------")
 
 
         response = chain.invoke({
