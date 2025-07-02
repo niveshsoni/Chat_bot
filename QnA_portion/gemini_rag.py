@@ -59,8 +59,8 @@ def get_gemini_response(question: str) -> dict:
         all_results = []
 
         # Search across all active tables
-        for table in active_tables:
-            searcher = HybridRRFSearch(
+        for table in active_tables: 
+            searcher = HybridRRFSearch(  # we have created the object here fot the hybridrffsearch (searcher=object)
                 db_config=DB_CONFIG,
                 table_name=table
                 # sql_output_file=f"hybrid_query_debug_{table}.txt"
