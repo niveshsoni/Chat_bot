@@ -1,8 +1,8 @@
 # api.py
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from gemini_rag import get_gemini_response
-from admin import router as admin_router
+from QnA_portion.gemini_rag import get_gemini_response
+from admin.admin import router as admin_router
 
 app = FastAPI(
     title="Financial QA API",
@@ -24,3 +24,7 @@ async def ask_question(query: QueryInput):
 
 # Mount admin routes
 app.include_router(admin_router, prefix="/admin")
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("api:app", host="0.0.0.0", port=8000, reload=True)

@@ -1,9 +1,9 @@
 import uuid
-from hybrid_rrf_search import HybridRRFSearch
+from QnA_portion.hybrid_rrf_search import HybridRRFSearch
 from langchain_core.prompts import PromptTemplate
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.runnables import RunnableSequence
-from db_logger import log_request, get_active_table_names
+from QnA_portion.db_logger import log_request, get_active_table_names
 
 GOOGLE_API_KEY = "AIzaSyBQIKEIBPWZ_f7SQxJsLXkTnrW5fNcJAVA"
 

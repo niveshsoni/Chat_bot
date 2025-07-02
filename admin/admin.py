@@ -5,7 +5,7 @@ import psycopg2
 from fastapi import APIRouter, UploadFile, Form, HTTPException
 from sentence_transformers import SentenceTransformer
 from pgvector.psycopg2 import register_vector
-from db_logger import get_connection
+from QnA_portion.db_logger import get_connection
 from tempfile import NamedTemporaryFile
 
 router = APIRouter()
