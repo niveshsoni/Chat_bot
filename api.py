@@ -13,8 +13,8 @@ app = FastAPI(
 class QueryInput(BaseModel):
     question: str
 
-@app.post("/ask")
-async def ask_question(query: QueryInput):
+@app.post("/ask") #routing
+async def ask_question(query: QueryInput): # it's function
     try:
         result = get_gemini_response(query.question)
         print("datatype of results: ",type(result))
