@@ -2,13 +2,18 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from QnA_portion.gemini_rag import get_gemini_response
-from admin.admin import router as admin_router
+from admin.admin import router as admin_router,create_tables
 
 app = FastAPI(
     title="Financial QA API",
     docs_url="/admin/docs",  # 👈 this changes the Swagger UI location
     redoc_url=None           # disable ReDoc (optional)
 )
+
+# Automatically initialize DB tables on startup
+@app.on_event("startup")
+def on_startup():
+  create_tables()
 
 class QueryInput(BaseModel):
     question: str
