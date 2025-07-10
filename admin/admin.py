@@ -384,11 +384,11 @@ async def submit_file(file_id: UUID = Form(...), page_no: int = Form(...)):
     for record in records:
         page_no = page_no
         page_content = record[1]
-        metadata = dict(item.strip().split(": ", 1) for item in record[2].split(", ") if ": " in item)
-
-# Access values like JSON
+        metadata = dict(item.split(":", 1) for item in record[2].split(",") if ":" in item)
+        metadata = {k.strip(): v.strip() for k, v in metadata.items()}
         title = metadata.get("Title")
         subtitle = metadata.get("SubTitle")
+
 
         print("Title:", title)
         print("Subtitle:", subtitle)
