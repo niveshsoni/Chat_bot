@@ -35,10 +35,14 @@ def get_connection():
 #     cur.close()
 #     conn.close()
 
-def get_active_table_names():
+def get_active_table_names(domain_name):
     conn = get_connection()
     cur = conn.cursor()
-    cur.execute("SELECT table_name FROM onboarding WHERE is_active = 'y'")
+    cur.execute(
+    "SELECT file_id FROM onboarding WHERE is_active = 'y' AND domain_name = %s",
+    (domain_name,)
+)
+
     tables = [row[0] for row in cur.fetchall()]
     print("tables are: ",tables)
     cur.close()

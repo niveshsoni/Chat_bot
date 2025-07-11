@@ -52,26 +52,29 @@ DB_CONFIG = {
 
 chain = prompt_template | llm
 
-def get_gemini_response(question: str) -> dict:
+def get_gemini_response(question: str,domain_name: str) -> dict:
     request_id = str(uuid.uuid4())
-    active_tables = get_active_table_names()
-    if not active_tables:
-        raise Exception("❌ No active table found in onboarding")
+    active_playbooks = get_active_table_names(domain_name)
+    print(active_playbooks)
+    if not active_playbooks:
+        raise Exception("❌ No active playbook found in onboarding")
     try:
         all_results = []
 
         # Search across all active tables
-        for table in active_tables: 
+        for file_id in active_playbooks: 
+
             searcher = HybridRRFSearch(  # we have created the object here fot the hybridrffsearch (searcher=object)
                 db_config=DB_CONFIG,
-                table_name=table
+                table_name="playbook_vector_table",
+                file_id = file_id
                 # sql_output_file=f"hybrid_query_debug_{table}.txt"
             )
             results = searcher.ask_question(question)
 
             # Attach source table (optional for debugging)
-            for r in results:
-                r["source_table"] = table
+            # for r in results:
+            #     r["source_table"] = table
 
             all_results.extend(results)
 

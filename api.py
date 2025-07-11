@@ -16,12 +16,13 @@ def on_startup():
   create_tables()
 
 class QueryInput(BaseModel):
+    domain_name: str
     question: str
 
 @app.post("/ask") #routing
 async def ask_question(query: QueryInput): # it's function
     try:
-        result = get_gemini_response(query.question)
+        result = get_gemini_response(query.question,query.domain_name)
         print("datatype of results: ",type(result))
         return result
     except Exception as e:

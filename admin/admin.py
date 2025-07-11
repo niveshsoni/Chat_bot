@@ -187,7 +187,8 @@ def _ensure_onboarding_table(cur):
         """
         CREATE TABLE IF NOT EXISTS onboarding (
             id SERIAL PRIMARY KEY,
-            table_name TEXT UNIQUE,
+            table_name TEXT,
+            domain_name TEXT UNIQUE,
             file_id UUID,
             is_active CHAR(1) DEFAULT 'n'
         );
@@ -205,6 +206,7 @@ def create_tables() -> None:
         CREATE TABLE IF NOT EXISTS file_status (
             file_id UUID PRIMARY KEY,
             file_name TEXT NOT NULL,
+            domain_name TEXT NOT NULL,
             created_at TIMESTAMP NOT NULL,
             status TEXT NOT NULL
         );
@@ -218,9 +220,10 @@ def create_tables() -> None:
             id SERIAL PRIMARY KEY,
             page_no INT NOT NULL,
             content TEXT NOT NULL,
+            domain_name TEXT NOT NULL,
             document TEXT NOT NULL,
             metadata TEXT NOT NULL,
-            file_id UUID REFERENCES file_status(file_id),
+            file_id UUID NOT NULL,
             created_at TIMESTAMP NOT NULL
         );
         """
@@ -233,6 +236,7 @@ def create_tables() -> None:
         CREATE TABLE IF NOT EXISTS playbook_vector_table (
             id SERIAL PRIMARY KEY,
             page_no INT,
+            domain_name TEXT,
             data TEXT,
             file_id UUID,
             document TEXT,
@@ -250,7 +254,7 @@ def create_tables() -> None:
 # ----------------------------------------------------------------------------
 
 @router.post("/UPLOAD")
-async def upload(file: UploadFile, background_tasks: BackgroundTasks):
+async def upload(file: UploadFile, background_tasks: BackgroundTasks, domain_name: str = Form(...)):
     """Upload a raw text file and queue page splitting."""
     try:
         tmp = NamedTemporaryFile(delete=False, suffix=".txt")
@@ -263,15 +267,15 @@ async def upload(file: UploadFile, background_tasks: BackgroundTasks):
         conn = get_connection()
         cur = conn.cursor()
         cur.execute(
-            """INSERT INTO file_status (file_id,file_name,created_at,status)
-                   VALUES (%s,%s,%s,%s)""",
-            (str(file_id), file.filename, created_at, "uploaded"),
+            """INSERT INTO file_status (file_id,file_name,domain_name,created_at,status)
+                   VALUES (%s,%s,%s,%s,%s)""",
+            (str(file_id), file.filename,domain_name, created_at, "uploaded"),
         )
         conn.commit()
         cur.close()
         conn.close()
 
-        background_tasks.add_task(_process_and_store_pages, tmp.name, file_id, created_at)
+        background_tasks.add_task(_process_and_store_pages, tmp.name, file_id,domain_name, created_at)
         return {"file_id": str(file_id), "message": "✅ Upload received. Parsing started."}
 
     except Exception as exc:
@@ -282,14 +286,21 @@ async def upload(file: UploadFile, background_tasks: BackgroundTasks):
 @router.post("/submit")
 async def submit_file(file_id: UUID = Form(...), background_tasks: BackgroundTasks = BackgroundTasks()):
     """Queue embedding + onboarding for a previously uploaded file."""
-    background_tasks.add_task(_embed_and_onboard, file_id)
+    conn = get_connection()
+    cur = conn.cursor()
+    register_vector(conn)
+    cur.execute("select domain_name from file_status WHERE file_id=%s", (str(file_id),))
+    records = cur.fetchall()
+    domain_name = records[0][0]
+    print("@@@",domain_name)
+    background_tasks.add_task(_embed_and_onboard, file_id,domain_name)
     return {"file_id": str(file_id), "message": "✅ Embedding job queued."}
 
 # ----------------------------------------------------------------------------
 # Background tasks
 # ----------------------------------------------------------------------------
 
-def _process_and_store_pages(tmp_path: str, file_id: UUID, created_at: datetime) -> None:
+def _process_and_store_pages(tmp_path: str, file_id: UUID, domain_name: str, created_at: datetime) -> None:
     conn = get_connection()
     cur = conn.cursor()
     register_vector(conn)
@@ -299,9 +310,9 @@ def _process_and_store_pages(tmp_path: str, file_id: UUID, created_at: datetime)
         pages = parse_pages(tmp_path)
         for page_no, content, document, metadata in pages:
             cur.execute(
-                """INSERT INTO playbook_detailed (page_no,content,document,metadata,file_id,created_at)
-                       VALUES (%s,%s,%s,%s,%s,%s)""",
-                (page_no, content, document, metadata, str(file_id), created_at),
+                """INSERT INTO playbook_detailed (page_no,content,domain_name,document,metadata,file_id,created_at)
+                       VALUES (%s,%s,%s,%s,%s,%s,%s)""",
+                (page_no, content, domain_name, document, metadata, str(file_id), created_at),
             )
         cur.execute("UPDATE file_status SET status='new' WHERE file_id=%s", (str(file_id),))
         conn.commit()
@@ -317,16 +328,16 @@ def _process_and_store_pages(tmp_path: str, file_id: UUID, created_at: datetime)
         os.remove(tmp_path)
 
 
-def _embed_and_onboard(file_id: UUID) -> None:
+def _embed_and_onboard(file_id: UUID,domain_name: str) -> None:
     """Insert embeddings into fixed table and onboard it."""
     conn = get_connection()
     cur = conn.cursor()
     register_vector(conn)
-
+    
     table_name = "playbook_vector_table"
 
     try:
-        cur.execute("SELECT page_no,content,document FROM playbook_detailed WHERE file_id=%s ORDER BY page_no", (str(file_id),))
+        cur.execute("SELECT page_no,domain_name,content,document FROM playbook_detailed WHERE file_id=%s ORDER BY page_no", (str(file_id),))
         records = cur.fetchall()
         if not records:
             raise ValueError(f"No page data for {file_id}")
@@ -337,6 +348,7 @@ def _embed_and_onboard(file_id: UUID) -> None:
             CREATE TABLE IF NOT EXISTS {table_name} (
                 id SERIAL PRIMARY KEY,
                 page_no INT,
+                domain_name TEXT,
                 data TEXT,
                 file_id UUID,
                 document TEXT,
@@ -346,12 +358,12 @@ def _embed_and_onboard(file_id: UUID) -> None:
         )
         conn.commit()
 
-        insert_q = f"INSERT INTO {table_name} (page_no,data,file_id,document,embedding) VALUES (%s,%s,%s,%s,%s)"
-        for page_no, content, document in records:
-            cur.execute(insert_q, (page_no, content, str(file_id), document, encode(content)))
+        insert_q = f"INSERT INTO {table_name} (page_no,domain_name,data,file_id,document,embedding) VALUES (%s,%s,%s,%s,%s,%s)"
+        for page_no,domain_name, content, document in records:
+            cur.execute(insert_q, (page_no, domain_name, content, str(file_id), document, encode(content)))
         cur.execute("UPDATE file_status SET status='embedded' WHERE file_id=%s", (str(file_id),))
 
-        _onboard_table(cur, table_name, file_id)
+        _onboard_table(cur, table_name, file_id,domain_name)
         conn.commit()
         logger.info("Vector table %s ready and onboarded", table_name)
     except Exception as exc:
@@ -446,13 +458,24 @@ def parse_pages(file_path):
 
     return data
 
-def _onboard_table(cur, table_name: str, file_id: UUID):
-    _ensure_onboarding_table(cur)
-    cur.execute("UPDATE onboarding SET is_active='n' WHERE is_active='y'")
+def _onboard_table(cur, table_name: str, file_id: UUID, domain_name: str):
+    _ensure_onboarding_table(cur)              # make sure the table exists
+
+    # 1️⃣  ensure the column is unique (run once, e.g. inside _ensure_onboarding_table)
+    # cur.execute("ALTER TABLE onboarding ADD CONSTRAINT uniq_domain UNIQUE (domain_name);")
+
+    # 2️⃣  insert‑or‑update in a single round‑trip
     cur.execute(
-        """INSERT INTO onboarding (table_name,file_id,is_active)
-               VALUES (%s,%s,'y')
-               ON CONFLICT (table_name) DO UPDATE SET is_active='y',file_id=EXCLUDED.file_id""",
-        (table_name, str(file_id))
+        """
+        INSERT INTO onboarding (table_name, file_id, domain_name, is_active)
+        VALUES (%s, %s, %s, 'y')
+        ON CONFLICT (domain_name)                 -- if that domain already exists …
+        DO UPDATE
+            SET file_id   = EXCLUDED.file_id,     -- … overwrite file_id
+                table_name = EXCLUDED.table_name, -- … and table_name if you wish
+                is_active = 'y';                  -- … keep/refresh active flag
+        """,
+        (table_name, str(file_id), domain_name)
     )
+
 
