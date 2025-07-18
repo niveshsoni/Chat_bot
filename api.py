@@ -4,6 +4,7 @@ from pydantic import BaseModel
 from QnA_portion.gemini_rag import get_gemini_response
 from admin.admin import router as admin_router,create_tables
 
+
 app = FastAPI(
     title="Financial QA API",
     docs_url="/admin/docs",  # 👈 this changes the Swagger UI location

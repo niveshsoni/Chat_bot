@@ -262,7 +262,8 @@ async def upload(file: UploadFile, background_tasks: BackgroundTasks, domain_nam
         tmp.close()
 
         file_id = uuid.uuid4()
-        created_at = datetime.utcnow()
+        created_at = datetime.now()
+        print(created_at)
 
         conn = get_connection()
         cur = conn.cursor()
