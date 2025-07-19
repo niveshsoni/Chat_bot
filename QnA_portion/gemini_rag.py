@@ -10,7 +10,7 @@ GOOGLE_API_KEY = "AIzaSyBQIKEIBPWZ_f7SQxJsLXkTnrW5fNcJAVA"
 
 llm = ChatGoogleGenerativeAI(
     model="gemini-2.0-flash",
-    temperature=0.2,
+    temperature=0.0,
     google_api_key=GOOGLE_API_KEY
 )
 
@@ -94,7 +94,7 @@ def get_gemini_response(question: str, domain_name: str) -> dict:
         llm_time = round(end_llm - start_llm, 4)
 
         if response.content.strip() == "ERROR 504: Content not found.":
-            log_request(request_id, question, None, "failure", error="Data not found")
+            log_request(request_id, question, None, "failure",chunk_time,llm_time, error="Data not found")
             raise Exception("LLM did not return a valid answer.")
 
         else:

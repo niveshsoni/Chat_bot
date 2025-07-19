@@ -361,7 +361,7 @@ def _embed_and_onboard(file_id: UUID,domain_name: str) -> None:
 
         insert_q = f"INSERT INTO {table_name} (page_no,domain_name,data,file_id,document,embedding) VALUES (%s,%s,%s,%s,%s,%s)"
         for page_no,domain_name, content, document in records:
-            cur.execute(insert_q, (page_no, domain_name, content, str(file_id), document, encode(content)))
+            cur.execute(insert_q, (page_no, domain_name, content, str(file_id), document, encode(document)))
         cur.execute("UPDATE file_status SET status='embedded' WHERE file_id=%s", (str(file_id),))
 
         _onboard_table(cur, table_name, file_id,domain_name)
