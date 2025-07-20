@@ -1,8 +1,9 @@
 # api.py
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from gemini_rag import get_gemini_response
-from admin import router as admin_router
+from QnA_portion.gemini_rag import get_gemini_response
+from admin.admin import router as admin_router,create_tables
+
 
 app = FastAPI(
     title="Financial QA API",
@@ -10,13 +11,19 @@ app = FastAPI(
     redoc_url=None           # disable ReDoc (optional)
 )
 
+# Automatically initialize DB tables on startup
+@app.on_event("startup")
+def on_startup():
+  create_tables()
+
 class QueryInput(BaseModel):
+    domain_name: str
     question: str
 
-@app.post("/ask")
-async def ask_question(query: QueryInput):
+@app.post("/ask") #routing
+async def ask_question(query: QueryInput): # it's function
     try:
-        result = get_gemini_response(query.question)
+        result = get_gemini_response(query.question,query.domain_name)
         print("datatype of results: ",type(result))
         return result
     except Exception as e:
@@ -24,3 +31,7 @@ async def ask_question(query: QueryInput):
 
 # Mount admin routes
 app.include_router(admin_router, prefix="/admin")
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("api:app", host="0.0.0.0", port=8000, reload=True)

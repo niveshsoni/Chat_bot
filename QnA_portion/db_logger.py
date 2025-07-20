@@ -1,5 +1,6 @@
 import psycopg2
 import json
+from datetime import datetime
 
 # Load database config and embedding table from config.json
 with open("config.json") as f:
@@ -35,19 +36,24 @@ def get_connection():
 #     cur.close()
 #     conn.close()
 
-def get_active_table_names():
+def get_active_table_names(domain_name):
     conn = get_connection()
     cur = conn.cursor()
-    cur.execute("SELECT table_name FROM onboarding WHERE is_active = 'y'")
+    cur.execute(
+    "SELECT file_id FROM onboarding WHERE is_active = 'y' AND domain_name = %s",
+    (domain_name,)
+)
+
     tables = [row[0] for row in cur.fetchall()]
     print("tables are: ",tables)
     cur.close()
     conn.close()
     return tables
 
-def log_request(request_id, question, answer, status, error=None):
+def log_request(request_id, question, answer, status, chunk_retrieval_time, llm_response_time, error=None):
     conn = get_connection()
     cur = conn.cursor()
+    created_at = datetime.now()
 
     # Create table if not exists
     cur.execute("""
@@ -57,6 +63,8 @@ def log_request(request_id, question, answer, status, error=None):
             question TEXT,
             status TEXT,
             error TEXT,
+            Chunk_Retrieval_Time TEXT,
+            LLM_Response_Time TEXT,        
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
@@ -76,9 +84,9 @@ def log_request(request_id, question, answer, status, error=None):
     """)
 
     cur.execute("""
-        INSERT INTO request_logs (request_id, question, answer, status, error)
-        VALUES (%s, %s, %s, %s, %s)
-    """, (request_id, question, answer, status, error))
+        INSERT INTO request_logs (request_id, question, answer, status, error,chunk_retrieval_time,llm_response_time,created_at)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+    """, (request_id, question, answer, status, error,chunk_retrieval_time,llm_response_time,created_at))
 
     conn.commit()
     cur.close()

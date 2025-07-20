@@ -1,15 +1,16 @@
 import uuid
-from hybrid_rrf_search import HybridRRFSearch
+from QnA_portion.hybrid_rrf_search import HybridRRFSearch
 from langchain_core.prompts import PromptTemplate
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.runnables import RunnableSequence
-from db_logger import log_request, get_active_table_names
+from QnA_portion.db_logger import log_request, get_active_table_names
+import time
 
 GOOGLE_API_KEY = "AIzaSyBQIKEIBPWZ_f7SQxJsLXkTnrW5fNcJAVA"
 
 llm = ChatGoogleGenerativeAI(
     model="gemini-2.0-flash",
-    temperature=0.2,
+    temperature=0.0,
     google_api_key=GOOGLE_API_KEY
 )
 
@@ -18,7 +19,9 @@ You are a strict assistant. Use only the context below to answer the question.
 
 ### INSTRUCTIONS:
 - Return only content from the context, grouped by the title it appears under.
-- If answer is from multiple chunks then you should search in all the chunks and respond.                                               
+- If answer is from multiple chunks then you should search in all the chunks and respond.   
+- if user ask two questions then if one question's response is available and second's not then you will have to respond for that question that's answer is available in context and for second one return "Answer is not available in context". 
+- if user ask two questions and response for both question is available in chunks. then you need to specify what are talking about.                                                                                                                                        
 - For each page where content is relevant, show:
   Title: <title>\n
   <exact matching content from that page>
@@ -50,57 +53,60 @@ DB_CONFIG = {
 
 chain = prompt_template | llm
 
-def get_gemini_response(question: str) -> dict:
+def get_gemini_response(question: str, domain_name: str) -> dict:
     request_id = str(uuid.uuid4())
-    active_tables = get_active_table_names()
-    if not active_tables:
-        raise Exception("❌ No active table found in onboarding")
+    active_playbooks = get_active_table_names(domain_name)
+    if not active_playbooks:
+        raise Exception("❌ No active playbook found in onboarding")
+
     try:
         all_results = []
 
-        # Search across all active tables
-        for table in active_tables:
+        # ⏱️ Start Chunk Retrieval Timer
+        start_chunk = time.time()
+
+        for file_id in active_playbooks:
             searcher = HybridRRFSearch(
                 db_config=DB_CONFIG,
-                table_name=table
-                # sql_output_file=f"hybrid_query_debug_{table}.txt"
+                table_name="playbook_vector_table",
+                file_id=file_id
             )
             results = searcher.ask_question(question)
-
-            # Attach source table (optional for debugging)
-            for r in results:
-                r["source_table"] = table
-
             all_results.extend(results)
 
-        print(len(all_results))
+        # ⏱️ End Chunk Retrieval Timer
+        end_chunk = time.time()
+        chunk_time = round(end_chunk - start_chunk, 4)
 
-        # Sort all results by score
         sorted_results = sorted(all_results, key=lambda x: x["score"], reverse=True)[:5]
-        # print("-----------------------------------------------------------------------------------")
-        # print("chunks that are passing to llm is: ",sorted_results)
-        # print(len(sorted_results))
-        # print("-----------------------------------------------------------------------------------")
-        # print()
         context_docs = "\n\n".join([r["document"] for r in sorted_results])
 
+        # ⏱️ Start LLM Timer
+        start_llm = time.time()
 
         response = chain.invoke({
             "context": context_docs,
             "question": question
         })
 
+        # ⏱️ End LLM Timer
+        end_llm = time.time()
+        llm_time = round(end_llm - start_llm, 4)
+
         if response.content.strip() == "ERROR 504: Content not found.":
-            log_request(request_id, question, None, "failure", error="Data not found")
+            log_request(request_id, question, None, "failure",chunk_time,llm_time, error="Data not found")
             raise Exception("LLM did not return a valid answer.")
-        
 
         else:
-            log_request(request_id, question, response.content, "success")
+            log_request(request_id, question, response.content, "success",chunk_time,llm_time)
             return {
                 "request_id": request_id,
                 "question": question,
-                "answer": response.content
+                "answer": response.content,
+                "timings": {
+                    "chunk_retrieval_sec": chunk_time,
+                    "llm_response_sec": llm_time
+                }
             }
 
     except Exception as e:
