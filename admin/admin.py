@@ -389,15 +389,16 @@ async def submit_file(file_id: UUID = Form(...), page_no: int = Form(...)):
     conn = get_connection()
     cur = conn.cursor()
     register_vector(conn) 
-    cur.execute("SELECT page_no, content, metadata FROM playbook_detailed WHERE file_id = %s AND page_no = %s",
+    cur.execute("SELECT page_no, domain_name, content, metadata FROM playbook_detailed WHERE file_id = %s AND page_no = %s",
     (str(file_id), int(page_no)))
     records = cur.fetchall()
     print("records are:  ")
     print("-----------------------")
     for record in records:
         page_no = page_no
-        page_content = record[1]
-        metadata = dict(item.split(":", 1) for item in record[2].split(",") if ":" in item)
+        domain = record[1]
+        page_content = record[2]
+        metadata = dict(item.split(":", 1) for item in record[3].split(",") if ":" in item)
         metadata = {k.strip(): v.strip() for k, v in metadata.items()}
         title = metadata.get("Title")
         subtitle = metadata.get("SubTitle")
@@ -410,8 +411,8 @@ async def submit_file(file_id: UUID = Form(...), page_no: int = Form(...)):
     if not records:
         raise ValueError(f"No page data for {file_id}")
   
-    
-    return {"page_no": page_no, "content": page_content, "title": title, "subtitle": subtitle}
+      
+    return {"page_no": page_no, "domain":domain , "content": page_content, "title": title, "subtitle": subtitle}
 
 
 def parse_pages(file_path):

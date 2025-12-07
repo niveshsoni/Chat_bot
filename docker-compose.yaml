@@ -1,6 +1,24 @@
 version: '3.8'
 
 services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: python-app
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres
+    environment:
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_USER: vector_user
+      DATABASE_PASSWORD: vector_pass
+      DATABASE_NAME: vector_db
+    networks:
+      - appnet
+
   postgres:
     image: ankane/pgvector
     container_name: pgvector-db
@@ -13,6 +31,21 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    networks:
+      - appnet
+
+    # 💡 Run CREATE EXTENSION on startup
+    command: >
+      bash -c "
+      docker-entrypoint.sh postgres &
+      sleep 5 &&
+      psql -U vector_user -d vector_db -c 'CREATE EXTENSION IF NOT EXISTS vector;' &&
+      wait
+      "
 
 volumes:
   pgdata:
+
+networks:
+  appnet:
+    driver: bridge
