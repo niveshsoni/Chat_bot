@@ -11,7 +11,7 @@ DB_CONFIG = {
     'dbname': 'vector_db',
     'user': 'vector_user',
     'password': 'vector_pass',
-    'host': 'localhost',
+    'host': 'postgres',
     'port': 5432
 }
 MODEL_NAME = 'all-MiniLM-L6-v2' #it convert text into embeddings

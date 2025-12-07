@@ -1,0 +1,2 @@
+if success rate < 98%
+-=-- mail ( grafana )-- you have succcess rate < 98% for last.1 hour

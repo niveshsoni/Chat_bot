@@ -6,7 +6,7 @@ from langchain_core.runnables import RunnableSequence
 from QnA_portion.db_logger import log_request, get_active_table_names
 import time
 
-GOOGLE_API_KEY = "AIzaSyBQIKEIBPWZ_f7SQxJsLXkTnrW5fNcJAVA"
+GOOGLE_API_KEY = "AIzaSyAZcsNCrZBDPylvfh9qvV9_ZX5h7_wBUu8"
 
 llm = ChatGoogleGenerativeAI(
     model="gemini-2.0-flash",
@@ -45,7 +45,7 @@ DB_CONFIG = {
     'dbname': 'vector_db',
     'user': 'vector_user',
     'password': 'vector_pass',
-    'host': 'localhost',
+    'host': 'postgres',
     'port': 5432
 }
 

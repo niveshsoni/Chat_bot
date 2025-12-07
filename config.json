@@ -1,6 +1,6 @@
 {
   "db_config": {
-    "host": "localhost",
+    "host": "postgres",
     "port": 5432,
     "database": "vector_db",
     "user": "vector_user",
